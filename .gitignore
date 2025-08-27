@@ -1,0 +1,50 @@
+# Ignore build artifacts, logs, and OS files
+*.o
+*.so
+*.a
+*.swp
+*.swo
+*.log
+*.out
+*.dSYM/
+/build/
+/.development/
+/.vscode/
+.DS_Store
+cloudflare-ips.conf
+*.tar.gz
+
+# Build artifacts
+output/
+obj-*/
+dist/
+*.la
+*.lo
+
+# Nginx sources
+nginx-sources/
+
+# Debian packaging
+debian/tmp/
+debian/*.debhelper.log
+debian/*.substvars
+debian/files
+debian/nginx-*
+
+# Editor/OS files
+*~
+.idea/
+.vscode/
+
+# Internal documentation
+docs/
+wiki/
+
+# AI tools
+.ai/
+
+# Misc
+.DS_Store
+
+# Tests
+test/

@@ -1,0 +1,54 @@
+name: Static Analysis
+
+on:
+  push:
+    branches: [ master, develop ]
+  pull_request:
+    branches: [ master, develop ]
+  workflow_dispatch: {}
+
+jobs:
+  analysis:
+    runs-on: ubuntu-latest
+    env:
+      NGINX_VERSION: 1.28.0
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential wget clang cppcheck bear libpcre3-dev zlib1g-dev libssl-dev libcurl4-openssl-dev ca-certificates
+
+      - name: Download NGINX
+        run: |
+          wget -nv https://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz
+          tar xzf nginx-${NGINX_VERSION}.tar.gz
+
+      - name: Configure (clang, extra warnings)
+        run: |
+          cd nginx-${NGINX_VERSION}
+          CC=clang CFLAGS="-O2 -Wall -Wextra -Werror -pedantic" \
+            ./configure --add-dynamic-module=../src --with-http_realip_module
+
+      - name: Build with Bear to capture compile commands
+        run: |
+          cd nginx-${NGINX_VERSION}
+          bear -- make modules -j$(nproc)
+
+      - name: cppcheck (errors only)
+        run: |
+          cppcheck --enable=warning,performance,portability,unusedFunction --error-exitcode=1 \
+            --std=c11 --language=c --inline-suppr \
+            -I nginx-${NGINX_VERSION}/src/core -I nginx-${NGINX_VERSION}/src/event -I nginx-${NGINX_VERSION}/src/http \
+            src/ 2>&1 | sed 's/^/cppcheck: /'
+
+      - name: clang-tidy
+        run: |
+          cd nginx-${NGINX_VERSION}
+          if [ -f compile_commands.json ]; then \
+            clang-tidy -p . ../src/ngx_http_cf_realip_module.c --warnings-as-errors='*'; \
+          else \
+            echo 'compile_commands.json not found - skipping clang-tidy'; \
+          fi

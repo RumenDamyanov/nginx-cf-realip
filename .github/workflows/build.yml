@@ -1,0 +1,56 @@
+name: Build
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [ master, develop ]
+  pull_request:
+    branches: [ master, develop ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        ubuntu: [jammy, noble]
+        nginx_version: [1.27.0, 1.28.0]
+    env:
+      NGINX_VERSION: ${{ matrix.nginx_version }}
+      UBUNTU_CODENAME: ${{ matrix.ubuntu }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential wget gcc libpcre3-dev zlib1g-dev libssl-dev libcurl4-openssl-dev file
+
+      - name: Download and extract NGINX source
+        run: |
+          set -euxo pipefail
+          mkdir -p nginx-sources/${NGINX_VERSION}/${UBUNTU_CODENAME}
+          cd nginx-sources/${NGINX_VERSION}/${UBUNTU_CODENAME}
+          wget -nv https://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz
+          tar xzf nginx-${NGINX_VERSION}.tar.gz
+
+      - name: Build dynamic module
+        run: |
+          set -euxo pipefail
+          cd nginx-sources/${NGINX_VERSION}/${UBUNTU_CODENAME}/nginx-${NGINX_VERSION}
+          SRC_PATH="$GITHUB_WORKSPACE/src"
+          echo "Using src path: $SRC_PATH"
+          ./configure --add-dynamic-module=$SRC_PATH --with-http_realip_module
+          make modules -j$(nproc)
+
+      - name: Check module output
+        run: |
+          test -f nginx-sources/${NGINX_VERSION}/${UBUNTU_CODENAME}/nginx-${NGINX_VERSION}/objs/ngx_http_cf_realip_module.so
+          file nginx-sources/${NGINX_VERSION}/${UBUNTU_CODENAME}/nginx-${NGINX_VERSION}/objs/ngx_http_cf_realip_module.so
+      - name: Extended tests (IPv6 + unchanged hash)
+        run: |
+          chmod +x test/extended_test.sh
+          sudo apt-get install -y libcurl4-openssl-dev libssl-dev
+          ./test/extended_test.sh

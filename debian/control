@@ -1,0 +1,17 @@
+Source: nginx-cf-realip
+Section: web
+Priority: optional
+Maintainer: Rumen Damyanov <contact@rumenx.com>
+Build-Depends: debhelper-compat (= 13), build-essential
+Standards-Version: 4.6.0
+Homepage: https://github.com/RumenDamyanov/nginx-cf-realip
+
+Package: nginx-cf-realip
+Architecture: any
+Depends: ${shlibs:Depends},
+         ${misc:Depends},
+         nginx (>= 1.18.0)
+Description: Nginx module for Cloudflare real IP header support
+ This module provides functionality to set the real client IP
+ from Cloudflare's HTTP headers. It is intended for use behind
+ Cloudflare's reverse proxy network.
