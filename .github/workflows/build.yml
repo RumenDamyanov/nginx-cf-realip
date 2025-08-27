@@ -42,13 +42,22 @@ jobs:
           cd nginx-sources/${NGINX_VERSION}/${UBUNTU_CODENAME}/nginx-${NGINX_VERSION}
           SRC_PATH="$GITHUB_WORKSPACE/src"
           echo "Using src path: $SRC_PATH"
-          ./configure --add-dynamic-module=$SRC_PATH --with-http_realip_module
-          make modules -j$(nproc)
+          ./configure --add-dynamic-module=$SRC_PATH --with-http_realip_module --with-http_ssl_module --with-compat
+          make modules -j$(nproc) || { echo 'modules build failed'; exit 1; }
+          echo '--- Listing objs directory ---'
+          ls -l objs | sed -n '1,120p'
+          echo '--- Grep Makefile for module ---'
+          grep -i cf_realip objs/Makefile || true
 
       - name: Check module output
         run: |
-          test -f nginx-sources/${NGINX_VERSION}/${UBUNTU_CODENAME}/nginx-${NGINX_VERSION}/objs/ngx_http_cf_realip_module.so
-          file nginx-sources/${NGINX_VERSION}/${UBUNTU_CODENAME}/nginx-${NGINX_VERSION}/objs/ngx_http_cf_realip_module.so
+          MOD=nginx-sources/${NGINX_VERSION}/${UBUNTU_CODENAME}/nginx-${NGINX_VERSION}/objs/ngx_http_cf_realip_module.so
+          if [ ! -f "$MOD" ]; then
+            echo 'Module .so not found; dumping build logs for diagnosis.'
+            grep -i cf_realip nginx-sources/${NGINX_VERSION}/${UBUNTU_CODENAME}/nginx-${NGINX_VERSION}/objs/Makefile || true
+            exit 1
+          fi
+            file "$MOD"
       - name: Extended tests (IPv6 + unchanged hash)
         run: |
           chmod +x test/extended_test.sh

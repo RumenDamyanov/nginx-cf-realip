@@ -5,14 +5,20 @@ on:
     inputs:
       tag:
         description: 'Git tag (e.g. v0.1.0) to build'
-        required: true
+        required: false
+        default: ''
       create_release:
         description: 'Create GitHub Release (true/false)'
         required: false
         default: 'true'
 
+permissions:
+  contents: write
+
 jobs:
   build-release:
+    outputs:
+      tag_name: ${{ steps.resolve_tag.outputs.tag_name }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -24,13 +30,28 @@ jobs:
       NGINX_VERSION: ${{ matrix.nginx_version }}
       UBUNTU_CODENAME: ${{ matrix.ubuntu }}
       TARGET_ARCH: ${{ matrix.arch }}
-      TAG_NAME: ${{ inputs.tag }}
     steps:
-      - name: Checkout
+      - name: Checkout (full history)
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.tag }}
           fetch-depth: 0
+
+      - name: Resolve tag (input or latest)
+        id: resolve_tag
+        run: |
+          set -euo pipefail
+          INPUT_TAG='${{ inputs.tag }}'
+          if [ -n "$INPUT_TAG" ]; then
+            TAG_NAME="$INPUT_TAG"
+          else
+            git fetch --tags --force
+            TAG_NAME=$(git describe --tags --abbrev=0 2>/dev/null || true)
+            if [ -z "$TAG_NAME" ]; then echo 'No tag provided and no existing tags found.' >&2; exit 1; fi
+          fi
+            echo "Using tag: $TAG_NAME"
+            git checkout "$TAG_NAME"
+            echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+            echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -47,7 +68,7 @@ jobs:
             *) echo "Unknown codename"; exit 1 ;;
           esac
 
-      - name: Build
+      - name: Build module
         run: |
           set -euxo pipefail
           WORKDIR=$PWD
@@ -100,7 +121,7 @@ jobs:
     needs: build-release
     if: ${{ inputs.create_release == 'true' }}
     steps:
-      - name: Download all artifacts
+      - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
           path: collected
@@ -125,8 +146,8 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ inputs.tag }}
-          name: ${{ inputs.tag }}
+          tag_name: ${{ needs.build-release.outputs.tag_name }}
+          name: ${{ needs.build-release.outputs.tag_name }}
           body: ${{ steps.notes.outputs.notes }}
           files: |
             collected/**/*.tar.gz
