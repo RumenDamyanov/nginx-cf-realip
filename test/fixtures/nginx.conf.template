@@ -1,0 +1,14 @@
+load_module ./ngx_http_cf_realip_module.so;
+
+events {}
+http {
+  cf_realip_enabled on;
+  cf_realip_allow_insecure on;
+  cf_realip_allow_other_hosts on;
+  cf_realip_fetch_ipv6 off;
+  cf_realip_source_url file://__TESTDIR__/v4.txt;
+  # test: set low refresh interval (overridden/clamped if below min); first fetch still after initial timer delay
+  cf_realip_refresh_interval 5;
+  cf_realip_output_path __TESTDIR__/snippet.conf;
+  server { listen 127.0.0.1:18080 reuseport; location / { return 200 'ok'; } }
+}
