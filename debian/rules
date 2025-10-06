@@ -1,40 +1,80 @@
 #!/usr/bin/make -f
+# -*- makefile -*-
 
-# Define variables
-NGINX_VERSION ?= $(shell dpkg-parsechangelog --show-field Version | cut -d- -f1)
-DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
-BUILDDIR = obj-$(DEB_HOST_MULTIARCH)
+# Uncomment for verbose build output
+#export DH_VERBOSE=1
 
-# Set the default target
+# Security hardening flags
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+DPKG_EXPORT_BUILDFLAGS = 1
+include /usr/share/dpkg/buildflags.mk
+
+# Use vendored NGINX headers (no nginx-dev dependency needed)
+NGINX_VERSION := 1.27.0
+VENDORED_NGINX := $(CURDIR)/vendor/nginx-$(NGINX_VERSION)
+
+# Module installation directory
+NGINX_MODULEDIR := /usr/lib/nginx/modules
+
+# Module name
+MODULE_NAME := ngx_http_cf_realip_module
+
 %:
 	dh $@
 
-# Override the build target to use gcc for the module
-override_dh_auto_build:
-	mkdir -p $(BUILDDIR)
-	echo "Current working directory: $(shell pwd)"
-	echo "Using NGINX_VERSION=$(NGINX_VERSION)"
-	echo "Listing Nginx headers:"
-	ls -l /project/headers/nginx-$(NGINX_VERSION)/src/core
-	gcc -c -fPIC \
-		-I/project/headers/nginx-$(NGINX_VERSION)/src/core \
-		-I/project/headers/nginx-$(NGINX_VERSION)/src/event \
-		-I/project/headers/nginx-$(NGINX_VERSION)/src/event/modules \
-		-I/project/headers/nginx-$(NGINX_VERSION)/src/os/unix \
-		-I/project/headers/nginx-$(NGINX_VERSION)/objs \
-		-I/project/headers/nginx-$(NGINX_VERSION)/src/http \
-		-I/project/headers/nginx-$(NGINX_VERSION)/src/http/modules \
-		-o $(BUILDDIR)/ngx_http_cf_realip_module.o /project/src/ngx_http_cf_realip_module.c
-	gcc -shared -o $(BUILDDIR)/ngx_http_cf_realip_module.so $(BUILDDIR)/ngx_http_cf_realip_module.o
-	echo "Listing $(BUILDDIR):"
-	ls -l $(BUILDDIR)
+override_dh_auto_configure:
+	# Verify vendored headers and pre-generated config exist
+	test -d $(VENDORED_NGINX)/src/core || \
+		(echo "ERROR: Vendored NGINX headers not found. Run: ./obs/vendor-nginx-headers.sh $(NGINX_VERSION)" && exit 1)
+	test -f $(VENDORED_NGINX)/objs/ngx_auto_config.h || \
+		(echo "ERROR: Pre-generated ngx_auto_config.h not found in $(VENDORED_NGINX)/objs/" && exit 1)
+	
+	# No configure step - using pre-generated headers (nginx-torblocker proven approach)
+	@echo "Using pre-generated Linux-generic headers from $(VENDORED_NGINX)/objs/"
 
-# Override the clean target to clean up build artifacts
-override_dh_auto_clean:
-	find $(BUILDDIR) -mindepth 1 -delete || true
-	rm -rf $(BUILDDIR)
+override_dh_auto_build:
+	# Direct gcc compilation using pre-generated headers (nginx-torblocker proven approach)
+	gcc $(CFLAGS) $(CPPFLAGS) -shared -fPIC -o $(MODULE_NAME).so \
+		-I$(VENDORED_NGINX)/src/core \
+		-I$(VENDORED_NGINX)/src/event \
+		-I$(VENDORED_NGINX)/src/event/modules \
+		-I$(VENDORED_NGINX)/src/http \
+		-I$(VENDORED_NGINX)/src/http/modules \
+		-I$(VENDORED_NGINX)/src/os/unix \
+		-I$(VENDORED_NGINX)/objs \
+		src/$(MODULE_NAME).c \
+		$(LDFLAGS) -lcurl
 
 override_dh_auto_install:
-	echo "==== Installing module ===="
-	install -D -m 644 $(BUILDDIR)/ngx_http_cf_realip_module.so \
-		debian/nginx-cf-realip/usr/lib/nginx/modules/ngx_http_cf_realip_module.so
+	# Install the module .so file (built in current directory, not objs/)
+	install -D -m 0644 \
+		$(MODULE_NAME).so \
+		debian/nginx-cf-realip$(NGINX_MODULEDIR)/$(MODULE_NAME).so
+	
+	# Install example configuration
+	install -D -m 0644 conf/example.conf \
+		debian/nginx-cf-realip/usr/share/doc/nginx-cf-realip/examples/example.conf
+	
+	# Install documentation
+	install -D -m 0644 README.md \
+		debian/nginx-cf-realip/usr/share/doc/nginx-cf-realip/README.md
+	install -D -m 0644 LICENSE.md \
+		debian/nginx-cf-realip/usr/share/doc/nginx-cf-realip/LICENSE
+
+override_dh_auto_clean:
+	# Clean build artifacts (direct gcc build, no Makefile)
+	rm -f $(MODULE_NAME).so
+	dh_auto_clean
+
+override_dh_installdocs:
+	dh_installdocs
+	# Add note about module loading
+	echo "To load this module, add to /etc/nginx/nginx.conf (top-level):" > debian/nginx-cf-realip/usr/share/doc/nginx-cf-realip/INSTALL
+	echo "load_module modules/$(MODULE_NAME).so;" >> debian/nginx-cf-realip/usr/share/doc/nginx-cf-realip/INSTALL
+
+override_dh_strip:
+	dh_strip --no-automatic-dbgsym
+
+# Don't run tests (requires running NGINX instance)
+override_dh_auto_test:
+	@echo "Skipping tests (requires NGINX runtime)"

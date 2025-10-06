@@ -45,3 +45,5 @@ wiki/
 
 # Misc
 .DS_Store
+.obs/
+vendor/

@@ -1,5 +1,18 @@
-nginx-cf-realip (0.1.0-1) unstable; urgency=medium
+nginx-cf-realip (1.0.1-1) unstable; urgency=medium
 
-  * Initial release.
+  * New upstream release 1.0.1
+  * Automatic Cloudflare IP range synchronization
+  * SHA-256 content verification for IP list changes
+  * Exponential backoff retry logic for fetch failures
+  * Atomic configuration file updates via temporary files
+  * HTTPS-only fetching with strict host validation
+  * Support for both IPv4 and IPv6 Cloudflare ranges
+  * Dynamic module compatible with NGINX 1.18.0+
+
+ -- Rumen Damyanov <contact@rumenx.com>  Mon, 06 Oct 2025 12:00:00 +0000
+
+nginx-cf-realip (0.1.0-1) unstable; urgency=low
+
+  * Initial release
 
  -- Rumen Damyanov <contact@rumenx.com>  Thu, 05 Jun 2025 12:00:00 +0000
