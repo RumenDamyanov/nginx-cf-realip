@@ -1,3 +1,8 @@
+[![build result](https://build.opensuse.org/projects/home:rumenx/packages/nginx-cf-realip/badge.svg?type=default)](https://build.opensuse.org/package/show/home:rumenx/nginx-cf-realip)
+[![GitHub Release](https://img.shields.io/github/v/release/RumenDamyanov/nginx-cf-realip?label=Release)](https://github.com/RumenDamyanov/nginx-cf-realip/releases)
+[![License](https://img.shields.io/github/license/RumenDamyanov/nginx-cf-realip?label=License)](LICENSE.md)
+[![Platform Support](https://img.shields.io/badge/Platform-Debian%20%7C%20Ubuntu%20%7C%20Fedora%20%7C%20openSUSE%20%7C%20RHEL-blue)](https://build.opensuse.org/package/show/home:rumenx/nginx-cf-realip)
+
 # nginx-cf-realip
 
 Automatic Cloudflare edge IP list fetcher for NGINX real client IP restoration.
@@ -59,7 +64,143 @@ http {
 }
 ```
 
+## Installation
+
+Pre-built packages are available for multiple distributions via [Open Build Service (OBS)](https://build.opensuse.org/package/show/home:rumenx/nginx-cf-realip).
+
+### Debian / Ubuntu
+
+**Step 1: Add the OBS repository**
+
+For Debian 12 (Bookworm):
+```bash
+echo 'deb http://download.opensuse.org/repositories/home:/rumenx/Debian_12/ /' | sudo tee /etc/apt/sources.list.d/nginx-cf-realip.list
+curl -fsSL https://download.opensuse.org/repositories/home:/rumenx/Debian_12/Release.key | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/nginx-cf-realip.gpg > /dev/null
+```
+
+For Ubuntu 24.04 (Noble):
+```bash
+echo 'deb http://download.opensuse.org/repositories/home:/rumenx/xUbuntu_24.04/ /' | sudo tee /etc/apt/sources.list.d/nginx-cf-realip.list
+curl -fsSL https://download.opensuse.org/repositories/home:/rumenx/xUbuntu_24.04/Release.key | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/nginx-cf-realip.gpg > /dev/null
+```
+
+For Ubuntu 22.04 (Jammy):
+```bash
+echo 'deb http://download.opensuse.org/repositories/home:/rumenx/xUbuntu_22.04/ /' | sudo tee /etc/apt/sources.list.d/nginx-cf-realip.list
+curl -fsSL https://download.opensuse.org/repositories/home:/rumenx/xUbuntu_22.04/Release.key | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/nginx-cf-realip.gpg > /dev/null
+```
+
+**Step 2: Install the package**
+
+```bash
+sudo apt update
+sudo apt install nginx-cf-realip
+```
+
+**Step 3: Load the module**
+
+Add to the top of `/etc/nginx/nginx.conf` (main context, before `http` block):
+
+```nginx
+load_module modules/ngx_http_cf_realip_module.so;
+```
+
+**Step 4: Configure and reload**
+
+```bash
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+### Fedora / RHEL / CentOS
+
+**Step 1: Add the OBS repository**
+
+For Fedora 41:
+```bash
+sudo dnf config-manager --add-repo https://download.opensuse.org/repositories/home:/rumenx/Fedora_41/home:rumenx.repo
+```
+
+For Fedora 40:
+```bash
+sudo dnf config-manager --add-repo https://download.opensuse.org/repositories/home:/rumenx/Fedora_40/home:rumenx.repo
+```
+
+For CentOS Stream 9:
+```bash
+sudo dnf config-manager --add-repo https://download.opensuse.org/repositories/home:/rumenx/CentOS_9_Stream/home:rumenx.repo
+```
+
+**Step 2: Install the package**
+
+```bash
+sudo dnf install nginx-cf-realip
+```
+
+**Step 3: Load the module**
+
+Add to the top of `/etc/nginx/nginx.conf` (main context, before `http` block):
+
+```nginx
+load_module modules/ngx_http_cf_realip_module.so;
+```
+
+**Step 4: Configure and reload**
+
+```bash
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+### openSUSE
+
+**Step 1: Add the OBS repository**
+
+For openSUSE Tumbleweed:
+```bash
+sudo zypper addrepo https://download.opensuse.org/repositories/home:/rumenx/openSUSE_Tumbleweed/home:rumenx.repo
+sudo zypper refresh
+```
+
+For openSUSE Leap 15.6:
+```bash
+sudo zypper addrepo https://download.opensuse.org/repositories/home:/rumenx/15.6/home:rumenx.repo
+sudo zypper refresh
+```
+
+**Step 2: Install the package**
+
+```bash
+sudo zypper install nginx-cf-realip
+```
+
+**Step 3: Load the module**
+
+Add to the top of `/etc/nginx/nginx.conf` (main context, before `http` block):
+
+```nginx
+load_module modules/ngx_http_cf_realip_module.so;
+```
+
+**Step 4: Configure and reload**
+
+```bash
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+### Package Details
+
+- **Module location**: `/usr/lib/nginx/modules/ngx_http_cf_realip_module.so` (Debian/Ubuntu) or `/usr/lib64/nginx/modules/ngx_http_cf_realip_module.so` (Fedora/openSUSE)
+- **Documentation**: `/usr/share/doc/nginx-cf-realip/` or `/usr/share/doc/packages/nginx-cf-realip/`
+- **Example config**: Available in the documentation directory
+- **Build status**: [![build result](https://build.opensuse.org/projects/home:rumenx/packages/nginx-cf-realip/badge.svg?type=default)](https://build.opensuse.org/package/show/home:rumenx/nginx-cf-realip)
+
+For other distributions or architectures, visit the [OBS project page](https://build.opensuse.org/package/show/home:rumenx/nginx-cf-realip) to browse available repositories and download instructions.
+
 ## Build (Manual)
+
+If you prefer to build from source:
 
 ```bash
 git clone https://github.com/RumenDamyanov/nginx-cf-realip.git
