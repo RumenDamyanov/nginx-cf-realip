@@ -17,7 +17,7 @@ jobs:
       NGINX_VERSION: 1.28.0
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Install tooling
         run: |
