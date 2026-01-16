@@ -315,6 +315,8 @@ ngx_http_cf_realip_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child)
     ngx_http_cf_realip_loc_conf_t *prev = parent;
     ngx_http_cf_realip_loc_conf_t *conf = child;
 
+    (void)cf;  /* unused */
+
     ngx_conf_merge_value(conf->enabled, prev->enabled, 0);
 
     return NGX_CONF_OK;
