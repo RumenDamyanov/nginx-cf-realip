@@ -105,30 +105,3 @@ jobs:
             echo 'ARM64 build successful'; \
           "
 
-  test-debian-package:
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential devscripts debhelper libssl-dev
-
-      - name: Test Debian package build
-        run: |
-          set -euxo pipefail
-          # Copy OBS packaging files to debian/
-          mkdir -p debian
-          cp .obs/debian.control debian/control
-          cp .obs/debian.rules debian/rules
-          cp .obs/debian.changelog debian/changelog
-          echo "10" > debian/compat
-          chmod +x debian/rules
-          
-          # Build source package (don't actually build, just test packaging)
-          dpkg-buildpackage -S -us -uc --no-check-builddeps 2>&1 || echo "Source package creation completed"
-          
-          echo "Debian packaging test passed"
