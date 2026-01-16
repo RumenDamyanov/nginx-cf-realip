@@ -29,9 +29,12 @@ Why not just curl a list via cron? This module keeps the logic inside the NGINX 
 
 ## Directives
 
+### Global Directives (http{} block only)
+
+These configure the fetching behavior and apply once per NGINX instance:
+
 Directive | Arguments | Default | Description
 --------- | --------- | ------- | -----------
-cf_realip_enabled | on / off | off | Enable module logic
 cf_realip_source_url | URL | Cloudflare IPv4 list | IPv4 list URL (HTTPS required unless cf_realip_allow_insecure)
 cf_realip_source_url_v6 | URL | Cloudflare IPv6 list | IPv6 list URL
 cf_realip_fetch_ipv6 | on / off | on | Enable/disable IPv6 list fetching
@@ -40,7 +43,13 @@ cf_realip_output_path | path | /etc/nginx/cloudflare-ips.conf | Destination snip
 cf_realip_allow_insecure | on / off | off | Permit non-HTTPS URLs
 cf_realip_allow_other_hosts | on / off | off | Allow non-cloudflare hosts for source URLs
 
-Notes:
+### Per-Location Directive (http{}, server{}, or location{})
+
+Directive | Arguments | Default | Description
+--------- | --------- | ------- | -----------
+cf_realip_enabled | on / off | off | Enable module logic (can be overridden per server/location)
+
+### Notes
 
 * `cf_realip_refresh_interval` enforces a minimum of 300 seconds (5 minutes) to avoid abusive polling.
 * When unchanged (SHA256 identical) the file is left untouched (mtime stable) – your reload automation can key off mtime changes or NOTICE logs.
@@ -223,6 +232,10 @@ load_module modules/ngx_http_cf_realip_module.so;
 
 ```nginx
 http {
+    # Required: DNS resolver for fetching IP lists
+    resolver 1.1.1.1 8.8.8.8 valid=300s;
+    resolver_timeout 5s;
+    
     include /etc/nginx/cloudflare-ips.conf;  # generated file
     cf_realip_enabled on;
     cf_realip_refresh_interval 86400;
@@ -232,15 +245,19 @@ http {
 }
 ```
 
+**Important:** The `resolver` directive is required for the module to fetch IP lists.
+
 ## How It Works
 
-1. On worker process init, schedules first fetch (2s delay).
-2. Fetches IPv4 (and optionally IPv6) lists via libcurl.
-3. Validates each line as CIDR; discards invalid entries.
-4. Builds unified snippet; computes SHA256.
-5. If changed, atomically replaces `cf_realip_output_path`.
-6. Logs NOTICE with counts; callers decide when to run `nginx -s reload`.
-7. On errors, retains previous file; applies backoff.
+1. On worker process init, schedules first fetch (1s delay).
+2. Resolves hostname via NGINX's built-in resolver (requires `resolver` directive).
+3. Connects via native NGINX async I/O (supports HTTPS with SSL/TLS).
+4. Fetches IPv4 (and optionally IPv6) lists.
+5. Validates each line as CIDR; discards invalid entries.
+6. Builds unified snippet; computes SHA256.
+7. If changed, atomically replaces `cf_realip_output_path`.
+8. Logs NOTICE with counts; callers decide when to run `nginx -s reload`.
+9. On errors, retains previous file; applies exponential backoff.
 
 ## Suggested Reload Automation
 
@@ -276,6 +293,9 @@ WARN   cf_realip: invalid CIDR skipped (badline)
 ```nginx
 load_module modules/ngx_http_cf_realip_module.so;
 http {
+  # Required: DNS resolver
+  resolver 1.1.1.1;
+  
   include /etc/nginx/cloudflare-ips.conf;
   cf_realip_enabled on;
   # All other directives use defaults

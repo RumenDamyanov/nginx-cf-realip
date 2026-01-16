@@ -17,12 +17,12 @@ jobs:
       NGINX_VERSION: 1.28.0
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Install tooling
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential wget clang cppcheck bear libpcre3-dev zlib1g-dev libssl-dev libcurl4-openssl-dev ca-certificates
+          sudo apt-get install -y build-essential wget clang cppcheck bear libpcre3-dev zlib1g-dev libssl-dev ca-certificates
 
       - name: Download NGINX
         run: |

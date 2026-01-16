@@ -1,6 +1,6 @@
 # Contributing to nginx-cf-realip
 
-Thanks for your interest in improving nginx-cf-realip! This Nginx module helps protect web servers by blocking Tor exit nodes with granular control.
+Thanks for your interest in improving nginx-cf-realip! This Nginx module automatically fetches and maintains Cloudflare's IP ranges for real client IP restoration.
 
 ## Ways to Help
 
@@ -16,7 +16,7 @@ Thanks for your interest in improving nginx-cf-realip! This Nginx module helps p
 
 - Nginx source code (1.24+ recommended)
 - GCC compiler and build tools
-- Development libraries: `libpcre3-dev`, `zlib1g-dev`
+- Development libraries: `libpcre3-dev`, `zlib1g-dev`, `libssl-dev`
 - Git for version control
 
 ### Local Development
@@ -29,21 +29,21 @@ Thanks for your interest in improving nginx-cf-realip! This Nginx module helps p
 
 2. **Download Nginx source** (match your target version):
    ```bash
-   wget https://nginx.org/download/nginx-1.26.0.tar.gz
-   tar xzf nginx-1.26.0.tar.gz
+   wget https://nginx.org/download/nginx-1.27.0.tar.gz
+   tar xzf nginx-1.27.0.tar.gz
    ```
 
 3. **Build the module**:
    ```bash
-   cd nginx-1.26.0
-   ./configure --add-dynamic-module=../src
+   cd nginx-1.27.0
+   ./configure --add-dynamic-module=../src --with-http_realip_module
    make modules
    ```
 
 4. **Test the build**:
    ```bash
    # Check module exists
-   ls objs/ngx_http_torblocker_module.so
+   ls objs/ngx_http_cf_realip_module.so
 
    # Basic load test
    nginx -t -c ../conf/test.conf
@@ -55,6 +55,7 @@ Thanks for your interest in improving nginx-cf-realip! This Nginx module helps p
 - **Configuration test**: Validate directive parsing works correctly
 - **Memory test**: Check for leaks with valgrind (if available)
 - **Integration test**: Load module in running Nginx instance
+- **Run test suite**: Execute scripts in `test/` directory
 
 ## Coding Guidelines
 
@@ -74,7 +75,7 @@ Thanks for your interest in improving nginx-cf-realip! This Nginx module helps p
 ### Example Code Pattern
 ```c
 // Good: Nginx-style error handling
-conf = ngx_pcalloc(cf->pool, sizeof(ngx_http_torblocker_conf_t));
+conf = ngx_pcalloc(cf->pool, sizeof(ngx_http_cf_realip_conf_t));
 if (conf == NULL) {
     return NULL;
 }
@@ -84,7 +85,7 @@ cln = ngx_pool_cleanup_add(cf->pool, 0);
 if (cln == NULL) {
     return NULL;
 }
-cln->handler = ngx_http_torblocker_cleanup;
+cln->handler = ngx_http_cf_realip_cleanup;
 ```
 
 ## Commit Style
@@ -92,7 +93,7 @@ cln->handler = ngx_http_torblocker_cleanup;
 - **Format**: `type: brief description`
 - **Types**: `feat`, `fix`, `docs`, `test`, `refactor`, `perf`
 - **Examples**:
-  - `feat: add torblock_response_code directive`
+  - `feat: add cf_realip_fetch_ipv6 directive`
   - `fix: prevent memory leak in cleanup handler`
   - `docs: update build instructions for macOS`
 
@@ -119,6 +120,7 @@ cln->handler = ngx_http_torblocker_cleanup;
 - **Memory Management**: Uses Nginx pools exclusively
 - **Error Handling**: Follows Nginx patterns (return codes)
 - **Threading**: Must be thread-safe (Nginx may use worker processes)
+- **External Dependencies**: OpenSSL for SHA256 (uses native NGINX HTTP fetching)
 
 ## Code of Conduct
 

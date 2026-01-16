@@ -2,28 +2,21 @@ ngx_addon_name=ngx_http_cf_realip_module
 
 # Support both dynamic (preferred) and static build contexts.
 if test -n "$ngx_module_link"; then
-		# Dynamic module path
-		ngx_module_type=HTTP
-		ngx_module_name=ngx_http_cf_realip_module
-		ngx_module_srcs="$ngx_addon_dir/ngx_http_cf_realip_module.c"
-	# Required libraries for SHA256 (OpenSSL) and HTTP fetching (libcurl)
-	ngx_module_libs="-lcrypto -lcurl"
-		. auto/module
+    # Dynamic module path
+    ngx_module_type=HTTP
+    ngx_module_name=ngx_http_cf_realip_module
+    ngx_module_srcs="$ngx_addon_dir/ngx_http_cf_realip_module.c"
+    # OpenSSL crypto for SHA256 hashing
+    ngx_module_libs="-lcrypto"
+    . auto/module
 else
-		# Static fallback (not typical for this project, but keeps compatibility)
-		HTTP_MODULES="$HTTP_MODULES ngx_http_cf_realip_module"
-		NGX_ADDON_SRCS="$NGX_ADDON_SRCS $ngx_addon_dir/ngx_http_cf_realip_module.c"
+    # Static fallback
+    HTTP_MODULES="$HTTP_MODULES ngx_http_cf_realip_module"
+    NGX_ADDON_SRCS="$NGX_ADDON_SRCS $ngx_addon_dir/ngx_http_cf_realip_module.c"
 fi
-
-# Link against libcurl for outbound HTTPS fetches (Cloudflare IP lists)
-case " $CORE_LIBS " in
-	*" -lcurl "*) ;;
-	*) CORE_LIBS="$CORE_LIBS -lcurl" ;;
-esac
 
 # Ensure OpenSSL crypto for SHA256
 case " $CORE_LIBS " in
-	*" -lcrypto "*) ;;
-	*) CORE_LIBS="$CORE_LIBS -lcrypto" ;;
+    *" -lcrypto "*) ;;
+    *) CORE_LIBS="$CORE_LIBS -lcrypto" ;;
 esac
-

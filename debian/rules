@@ -34,6 +34,7 @@ override_dh_auto_configure:
 
 override_dh_auto_build:
 	# Direct gcc compilation using pre-generated headers (nginx-torblocker proven approach)
+	# Note: Uses native NGINX HTTP fetching - no libcurl needed
 	gcc $(CFLAGS) $(CPPFLAGS) -shared -fPIC -o $(MODULE_NAME).so \
 		-I$(VENDORED_NGINX)/src/core \
 		-I$(VENDORED_NGINX)/src/event \
@@ -43,7 +44,7 @@ override_dh_auto_build:
 		-I$(VENDORED_NGINX)/src/os/unix \
 		-I$(VENDORED_NGINX)/objs \
 		src/$(MODULE_NAME).c \
-		$(LDFLAGS) -lcurl
+		$(LDFLAGS) -lcrypto
 
 override_dh_auto_install:
 	# Install the module .so file (built in current directory, not objs/)

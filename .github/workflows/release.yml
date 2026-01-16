@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Git tag (e.g. v0.1.0) to build'
+        description: 'Git tag (e.g. v0.3.0) to build'
         required: false
         default: ''
       create_release:
@@ -19,6 +19,7 @@ jobs:
   build-release:
     outputs:
       tag_name: ${{ steps.resolve_tag.outputs.tag_name }}
+      version: ${{ steps.resolve_tag.outputs.version }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -32,7 +33,7 @@ jobs:
       TARGET_ARCH: ${{ matrix.arch }}
     steps:
       - name: Checkout (full history)
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -48,10 +49,13 @@ jobs:
             TAG_NAME=$(git describe --tags --abbrev=0 2>/dev/null || true)
             if [ -z "$TAG_NAME" ]; then echo 'No tag provided and no existing tags found.' >&2; exit 1; fi
           fi
-            echo "Using tag: $TAG_NAME"
-            git checkout "$TAG_NAME"
-            echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
-            echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
+          echo "Using tag: $TAG_NAME"
+          git checkout "$TAG_NAME"
+          VERSION="${TAG_NAME#v}"
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -72,15 +76,15 @@ jobs:
         run: |
           set -euxo pipefail
           WORKDIR=$PWD
-          docker run --platform=linux/${TARGET_ARCH} --rm -v "$WORKDIR":/workspace -w /workspace $(echo '${{ steps.base.outputs.image }}') /bin/bash -c "\
+          docker run --platform=linux/${TARGET_ARCH} --rm -v "$WORKDIR":/workspace -w /workspace ${{ steps.base.outputs.image }} /bin/bash -c "\
             set -euxo pipefail; \
             apt-get update; \
-            DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential wget libpcre3-dev zlib1g-dev libssl-dev libcurl4-openssl-dev ca-certificates file; \
+            DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential wget libpcre3-dev zlib1g-dev libssl-dev ca-certificates file; \
             mkdir -p release/build/${NGINX_VERSION}/${UBUNTU_CODENAME}/${TARGET_ARCH}; cd release/build/${NGINX_VERSION}/${UBUNTU_CODENAME}/${TARGET_ARCH}; \
             wget -nv https://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz; \
             tar xzf nginx-${NGINX_VERSION}.tar.gz; cd nginx-${NGINX_VERSION}; \
-            ./configure --add-dynamic-module=/workspace/src --with-http_realip_module; \
-            make modules -j$(nproc); \
+            ./configure --add-dynamic-module=/workspace/src --with-http_realip_module --with-http_ssl_module --with-compat; \
+            make modules -j\$(nproc); \
             cp objs/ngx_http_cf_realip_module.so /workspace/ngx_http_cf_realip_module-nginx${NGINX_VERSION}-ubuntu-${UBUNTU_CODENAME}-${TARGET_ARCH}.so; \
             file objs/ngx_http_cf_realip_module.so; \
           "
@@ -88,28 +92,87 @@ jobs:
       - name: Package artifact
         run: |
           set -euxo pipefail
-          VER=${TAG_NAME#v}
-          FN_BASE=nginx-cf-realip_${VER}_nginx${NGINX_VERSION}_${UBUNTU_CODENAME}_${TARGET_ARCH}
+          FN_BASE=nginx-cf-realip_${VERSION}_nginx${NGINX_VERSION}_${UBUNTU_CODENAME}_${TARGET_ARCH}
           mkdir -p pkg
           cp LICENSE.md README.md CHANGELOG.md pkg/ || true
+          cp conf/example.conf pkg/ || true
           cp ngx_http_cf_realip_module-nginx${NGINX_VERSION}-ubuntu-${UBUNTU_CODENAME}-${TARGET_ARCH}.so pkg/
-          cat > pkg/BUILDINFO.json <<EOF
+          
+          # Create install script
+          cat > pkg/install.sh << 'INSTALL_EOF'
+          #!/bin/bash
+          set -e
+          
+          # nginx-cf-realip installation script
+          MODULE_NAME="ngx_http_cf_realip_module"
+          
+          # Find the .so file
+          SO_FILE=$(ls ${MODULE_NAME}*.so 2>/dev/null | head -1)
+          if [ -z "$SO_FILE" ]; then
+            echo "Error: Module .so file not found"
+            exit 1
+          fi
+          
+          # Detect module directory
+          if [ -d "/usr/lib64/nginx/modules" ]; then
+            MODULE_DIR="/usr/lib64/nginx/modules"
+          elif [ -d "/usr/lib/nginx/modules" ]; then
+            MODULE_DIR="/usr/lib/nginx/modules"
+          else
+            MODULE_DIR="/etc/nginx/modules"
+            mkdir -p "$MODULE_DIR"
+          fi
+          
+          echo "Installing $SO_FILE to $MODULE_DIR/"
+          cp "$SO_FILE" "$MODULE_DIR/${MODULE_NAME}.so"
+          chmod 644 "$MODULE_DIR/${MODULE_NAME}.so"
+          
+          # Create empty output file if it doesn't exist
+          OUTPUT_FILE="/etc/nginx/cloudflare-ips.conf"
+          if [ ! -f "$OUTPUT_FILE" ]; then
+            touch "$OUTPUT_FILE"
+            chmod 644 "$OUTPUT_FILE"
+            echo "Created empty $OUTPUT_FILE"
+          fi
+          
+          echo ""
+          echo "Installation complete!"
+          echo ""
+          echo "Next steps:"
+          echo "1. Add to nginx.conf (at the top, before http block):"
+          echo "   load_module modules/${MODULE_NAME}.so;"
+          echo ""
+          echo "2. Add to http{} block:"
+          echo "   resolver 1.1.1.1;"
+          echo "   include /etc/nginx/cloudflare-ips.conf;"
+          echo "   cf_realip_enabled on;"
+          echo "   real_ip_header CF-Connecting-IP;"
+          echo ""
+          echo "3. Test and reload:"
+          echo "   nginx -t && systemctl reload nginx"
+          INSTALL_EOF
+          chmod +x pkg/install.sh
+          
+          # Create build info
+          cat > pkg/BUILDINFO.json << EOF
           {
-            "moduleVersion": "${VER}",
+            "moduleVersion": "${VERSION}",
             "nginxVersion": "${NGINX_VERSION}",
             "ubuntuCodename": "${UBUNTU_CODENAME}",
             "arch": "${TARGET_ARCH}",
             "gitCommit": "${GITHUB_SHA}",
             "buildTimeUtc": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-            "toolchain": "gcc $(gcc -dumpversion)",
-            "libcurl": "$(curl --version | head -n1 || true)"
+            "toolchain": "native gcc",
+            "httpFetching": "native NGINX async I/O",
+            "dependencies": ["libcrypto (OpenSSL)"]
           }
           EOF
+          
           tar czf ${FN_BASE}.tar.gz -C pkg .
           sha256sum ${FN_BASE}.tar.gz >> SHA256SUMS
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: release-${{ matrix.nginx_version }}-${{ matrix.ubuntu }}-${{ matrix.arch }}
           path: |
@@ -121,8 +184,13 @@ jobs:
     needs: build-release
     if: ${{ inputs.create_release == 'true' }}
     steps:
+      - name: Checkout for changelog
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Download artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v4
         with:
           path: collected
 
@@ -132,16 +200,64 @@ jobs:
           find collected -name SHA256SUMS -exec cat {} + > ALL_SHA256SUMS
           sort -u ALL_SHA256SUMS > SHA256SUMS
 
+      - name: Extract changelog for version
+        id: changelog
+        run: |
+          VERSION="${{ needs.build-release.outputs.version }}"
+          echo "Extracting changelog for version $VERSION"
+          
+          # Extract the section for this version from CHANGELOG.md
+          NOTES=$(awk -v ver="$VERSION" '
+            /^## \[/ { 
+              if (found) exit
+              if (index($0, "[" ver "]") || index($0, "["ver"]")) found=1
+              next
+            }
+            found { print }
+          ' CHANGELOG.md)
+          
+          if [ -z "$NOTES" ]; then
+            NOTES="Release $VERSION"
+          fi
+          
+          # Write to file for multi-line handling
+          echo "$NOTES" > release_notes.md
+
       - name: Generate Release Notes
         id: notes
         run: |
-          echo 'notes<<EOF' >> $GITHUB_OUTPUT
-          echo 'Manual release build artifacts:' >> $GITHUB_OUTPUT
-          find collected -name '*.tar.gz' -printf '%f\n' | sort >> $GITHUB_OUTPUT
-          echo '' >> $GITHUB_OUTPUT
-          echo 'SHA256 checksums:' >> $GITHUB_OUTPUT
-          cat SHA256SUMS >> $GITHUB_OUTPUT
-          echo 'EOF' >> $GITHUB_OUTPUT
+          {
+            echo 'notes<<EOF'
+            echo "## nginx-cf-realip ${{ needs.build-release.outputs.tag_name }}"
+            echo ""
+            echo "### Changes"
+            cat release_notes.md
+            echo ""
+            echo "### Installation"
+            echo ""
+            echo "1. Download the tarball matching your nginx version, Ubuntu version, and architecture"
+            echo "2. Extract: \`tar xzf nginx-cf-realip_*.tar.gz\`"
+            echo "3. Run: \`sudo ./install.sh\`"
+            echo ""
+            echo "**Important:** This version requires a \`resolver\` directive in nginx.conf."
+            echo ""
+            echo "### Build Matrix"
+            echo ""
+            echo "| NGINX | Ubuntu | Architecture |"
+            echo "|-------|--------|--------------|"
+            find collected -name '*.tar.gz' | sed 's/.*nginx-cf-realip_[^_]*_nginx\([^_]*\)_\([^_]*\)_\([^.]*\).*/| \1 | \2 | \3 |/' | sort -u
+            echo ""
+            echo "### Artifacts"
+            echo ""
+            find collected -name '*.tar.gz' -printf '%f\n' | sort
+            echo ""
+            echo "### SHA256 Checksums"
+            echo ""
+            echo '```'
+            cat SHA256SUMS
+            echo '```'
+            echo 'EOF'
+          } >> $GITHUB_OUTPUT
 
       - name: Create Release
         uses: softprops/action-gh-release@v2

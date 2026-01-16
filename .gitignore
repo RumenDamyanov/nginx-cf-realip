@@ -9,7 +9,6 @@
 *.dSYM/
 /build/
 /.development/
-/.vscode/
 .DS_Store
 cloudflare-ips.conf
 *.tar.gz
@@ -21,29 +20,48 @@ dist/
 *.la
 *.lo
 
-# Nginx sources
+# Nginx sources (downloaded during build)
 nginx-sources/
 
-# Debian packaging
+# Test runtime directories
+test-runtime*/
+build-*/
+
+# Debian packaging (build artifacts)
 debian/tmp/
 debian/*.debhelper.log
 debian/*.substvars
 debian/files
 debian/nginx-*
 
-# Editor/OS files
+# Editor/IDE files
 *~
 .idea/
 .vscode/
+.cursor/
 
-# Internal documentation
-docs/
-wiki/
+# ============================================
+# Local-only directories (not committed to git)
+# These are used for local development, testing,
+# OBS packaging, and documentation source.
+# ============================================
 
-# AI tools
+# AI assistant instructions (internal)
 .ai/
 
-# Misc
-.DS_Store
+# OBS packaging files (local builds only)
 .obs/
+
+# Vendored nginx headers (for OBS builds)
 vendor/
+
+# Documentation source (used for GitHub wiki)
+docs/
+
+# Wiki source files (published to GitHub wiki separately)
+wiki/
+
+# Development scripts (local helpers)
+scripts/
+
+# ============================================

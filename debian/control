@@ -4,7 +4,6 @@ Priority: optional
 Maintainer: Rumen Damyanov <contact@rumenx.com>
 Build-Depends: debhelper-compat (= 13),
                gcc,
-               libcurl4-openssl-dev,
                libssl-dev
 Standards-Version: 4.6.2
 Homepage: https://github.com/RumenDamyanov/nginx-cf-realip
@@ -16,7 +15,6 @@ Package: nginx-cf-realip
 Architecture: any
 Depends: ${shlibs:Depends},
          ${misc:Depends},
-         libcurl4 | libcurl3-gnutls,
          libssl3 | libssl1.1
 Recommends: nginx (>= 1.18.0)
 Description: NGINX dynamic module for Cloudflare real IP restoration
@@ -24,16 +22,19 @@ Description: NGINX dynamic module for Cloudflare real IP restoration
  IPv4 and IPv6 IP ranges, enabling accurate real client IP address
  restoration when behind Cloudflare's reverse proxy network.
  .
+ Uses native NGINX async HTTP fetching (no external HTTP library).
+ Requires 'resolver' directive in nginx http{} block.
+ .
  Features:
+  * Native async HTTP/HTTPS fetching via NGINX event loop
   * Automatic periodic fetch of Cloudflare IP ranges (IPv4/IPv6)
   * Secure HTTPS-only fetching with host validation
   * Content hashing to detect changes (SHA-256)
   * Atomic configuration updates via temporary files
   * Exponential backoff on fetch failures
-  * Zero external runtime dependencies (embedded fetcher)
   * Dynamic module loading (no NGINX recompilation needed)
  .
- The module uses libcurl for HTTPS fetching and OpenSSL for SHA-256
- hashing. It generates nginx configuration snippets that can be
- included to trust Cloudflare's proxy IPs and restore original
- client addresses from X-Forwarded-For headers.
+ The module uses native NGINX I/O for HTTP fetching and OpenSSL for
+ SHA-256 hashing. It generates nginx configuration snippets that can
+ be included to trust Cloudflare's proxy IPs and restore original
+ client addresses from CF-Connecting-IP headers.
