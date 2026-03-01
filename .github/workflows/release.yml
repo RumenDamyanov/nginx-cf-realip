@@ -172,7 +172,7 @@ jobs:
           sha256sum ${FN_BASE}.tar.gz >> SHA256SUMS
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: release-${{ matrix.nginx_version }}-${{ matrix.ubuntu }}-${{ matrix.arch }}
           path: |
