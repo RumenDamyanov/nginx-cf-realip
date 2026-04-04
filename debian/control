@@ -4,6 +4,7 @@ Priority: optional
 Maintainer: Rumen Damyanov <contact@rumenx.com>
 Build-Depends: debhelper-compat (= 13),
                gcc,
+               libcrypt-dev,
                libssl-dev
 Standards-Version: 4.6.2
 Homepage: https://github.com/RumenDamyanov/nginx-cf-realip
