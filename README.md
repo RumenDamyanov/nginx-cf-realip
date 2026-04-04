@@ -420,7 +420,7 @@ All modules are also available for Apache httpd:
 
 | Module | Description | GitHub | OBS |
 |--------|-------------|--------|-----|
-| **apache-cf-realip** | Cloudflare real IP restoration via `mod_remoteip` | [GitHub](https://github.com/RumenDamyanov/apache-cf-realip) | [OBS](https://build.opensuse.org/package/show/home:rumenx/apache-cf-remoteip) |
+| **apache-cf-realip** | Cloudflare real IP restoration via `mod_remoteip` | [GitHub](https://github.com/RumenDamyanov/apache-cf-realip) | [OBS](https://build.opensuse.org/package/show/home:rumenx/apache-cf-realip) |
 | **apache-gone** | Return HTTP 410 Gone for permanently removed URIs | [GitHub](https://github.com/RumenDamyanov/apache-gone) | [OBS](https://build.opensuse.org/package/show/home:rumenx/apache-gone) |
 | **apache-torblocker** | Control access from Tor exit nodes | [GitHub](https://github.com/RumenDamyanov/apache-torblocker) | [OBS](https://build.opensuse.org/package/show/home:rumenx/apache-torblocker) |
 | **apache-waf** | IP/CIDR-based access control with named lists | [GitHub](https://github.com/RumenDamyanov/apache-waf) | [OBS](https://build.opensuse.org/package/show/home:rumenx/apache-waf) |
