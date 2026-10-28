@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-28
+
+### Security
+- HTTPS fetches now verify the peer certificate against the system trust store and require the certificate hostname to match the URL
+- The fetch client negotiates TLS 1.2 or TLS 1.3 only
+- The outbound HTTP request buffer is sized from the URL
+
+### Fixed
+- OBS and vendored-header builds define `NGX_HTTP_SSL`, so the HTTPS client is included in the package
+
 ## [0.3.0] - 2026-01-16
 
 ### Changed

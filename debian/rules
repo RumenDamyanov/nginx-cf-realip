@@ -35,6 +35,8 @@ override_dh_auto_configure:
 override_dh_auto_build:
 	# Direct gcc compilation using pre-generated headers (nginx-torblocker proven approach)
 	# Note: Uses native NGINX HTTP fetching - no libcurl needed
+	# Vendored auto-config comments out NGX_HTTP_SSL. Define it so the
+	# HTTPS client and certificate checks are compiled into the module.
 	gcc $(CFLAGS) $(CPPFLAGS) -shared -fPIC -o $(MODULE_NAME).so \
 		-I$(VENDORED_NGINX)/src/core \
 		-I$(VENDORED_NGINX)/src/event \
@@ -43,8 +45,9 @@ override_dh_auto_build:
 		-I$(VENDORED_NGINX)/src/http/modules \
 		-I$(VENDORED_NGINX)/src/os/unix \
 		-I$(VENDORED_NGINX)/objs \
+		-DNGX_COMPAT -DNGX_HTTP_SSL -DNGX_OPENSSL -DNGX_SSL \
 		src/$(MODULE_NAME).c \
-		$(LDFLAGS) -lcrypto
+		$(LDFLAGS) -lssl -lcrypto
 
 override_dh_auto_install:
 	# Install the module .so file (built in current directory, not objs/)

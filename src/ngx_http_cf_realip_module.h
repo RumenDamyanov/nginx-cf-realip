@@ -9,7 +9,7 @@
 #include <ngx_event_openssl.h>
 #endif
 
-#define CF_REALIP_MODULE_VERSION "0.3.0"
+#define CF_REALIP_MODULE_VERSION "0.3.1"
 
 /* Default values */
 #define CF_REALIP_DEFAULT_URL_V4    "https://www.cloudflare.com/ips-v4"
